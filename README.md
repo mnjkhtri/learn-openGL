@@ -2,7 +2,7 @@ sudo apt install cmake
 
 sudo apt install xorg-dev
 
-cd <extracted GLFW directory>
+cd "extracted GLFW directory"
   
 cmake -G "Unix Makefiles"
   
@@ -14,10 +14,10 @@ sudo apt-get install libx11-dev libglu1-mesa-dev freeglut3-dev libglew1.5 libgle
 
 ./rungl 00test.c
 
-Do you see a triangle?
+"Do you see a triangle?"
 
 cd <extracted GLAD local files> 
   
 sudo cp glad /usr/include/
   
-sudo cp glad.c <openGL directory>
+sudo cp glad.c "openGL directory"
