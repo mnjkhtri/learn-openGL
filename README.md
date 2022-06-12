@@ -1,4 +1,5 @@
 >sudo apt install cmake
+
 >sudo apt install xorg-dev
 
 >cd <extracted GLFW directory>
