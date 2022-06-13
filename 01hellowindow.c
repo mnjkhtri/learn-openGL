@@ -64,9 +64,11 @@ int main()
         //Input functionality of GLFW that when pressed ESCAPE closes the window <Proto2>
         processInput(window);
 
-        //To clear the screen with a particular color, to avoid seeing the results of previous screens
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);   //Set the color to clear the screen with (state-setting)
-        glClear(GL_COLOR_BUFFER_BIT);        //Set the COLOR BUFFER BIT (state-using)
+        //To clear the screen with a particular color, to avoid seeing the results of previous screens:
+        //Specify the values for color buffers
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        //Clear buffers to present values
+        glClear(GL_COLOR_BUFFER_BIT);
 
         //The window has two faces (to avoid flickering): the front (to show the word) and the back (to draw stuffs), this swaps them
         glfwSwapBuffers(window);   
