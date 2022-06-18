@@ -1,0 +1,348 @@
+0) Include all the stuffs:
+
+    #include <glad/glad.h>
+    #include <GLFW/glfw3.h>
+    #include <stb_image.h>
+
+    #include <glm/glm.hpp>
+    #include <glm/gtc/matrix_transform.hpp>
+    #include <glm/gtc/type_ptr.hpp>
+    #include <iostream>
+
+    #include "../Includes/shaders.hpp"
+    #include "../Includes/camera.hpp"
+
+
+1) Initialize and configure the GLFW
+
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+2) Create a GLFW window (requires SCREEN_H, SCREEN_W) and make it the current context
+
+    GLFWwindow* window = glfwCreateWindow(SCREEN_W, SCREEN_H, "YOU CANNOT RUN!", NULL, NULL);
+    if (window == NULL)
+    {
+        printf("Failed to create a window");
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
+
+    Globals: 
+    #define SCREEN_H 800
+    #define SCREEN_W 600
+
+3) Register all the possible callbacks (resizing and mouse movements) to the window:
+
+    glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetCursorPosCallback(window, mouse_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);  
+
+    Globals:
+    void framebuffer_size_callback(GLFWwindow* window, int width, int height)
+    {
+        return glViewport(0,0,width,height);
+    }
+
+4) Initialize GLAD before calling any OpenGL functions:
+
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+    {
+        printf("Failed to initialize GLAD");
+        return -1;
+    }
+
+5) Set the global OpenGL state:
+
+    glEnable(GL_DEPTH_TEST);
+
+6) Create the combined shader program (multiple shader programs of different fragments if shapes of same/different kinds need different colors or textures)
+
+    Shader ourShader("vertex.vs","fragment.fs");
+
+        >vertex shader: 
+            Inputs: position attributes and texture coordinates (also color if they are to be vertex specific), each attributes at different locations;
+            Uniforms: model, view and projection matrices
+            Outputs: gl_Position by setting the positions, everything else except positions
+            
+        >fragment shader:
+            Inputs: outs from vertex shaders
+            Uniforms: non vertex specific colors and texture samplers
+            Outputs: any one output mixing textures and/or colors
+
+7) Three data to establish: 
+    >Vertex specifics; from VAOs, VBOs, EBOs
+    >Static uniforms (texture samplers)
+    >Dynamic uniforms (view and projection matrices)
+Note: Model matrix can be static if only one shapes of a kind, is dynamic if multiples
+
+8) Initialize the vertices with attributes: position, colors, textures coordinates:
+
+    float vertices[] = {
+        ...
+    };
+
+9) Create the indices for the order of vertiees:
+
+    unsigned int indices[] = {
+        ....
+    }
+
+10) Create the VAOs, VBOs and EBOs objects (multiples if multiples shapes of different kinds)
+
+    unsigned int VBO, EBO, VAO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
+    glGenBuffers(1, &EBO);
+
+11) Bind the VAO first so it can point to VBOs and EBOs that are going to be bound:
+
+    glBindVertexArray(VAO);
+
+12) Bind the VBO to appropriate target and send attributes data to it:
+
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+13) Bind the EBO to appropriate target and send indices data to it:
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+14) Tell OpenGL how data at VBO are to be interpreted (location, stride and offset)
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+15) Create the first texture and following textures (IDs are given to them automatically in series):
+
+    unsigned int texture1, texture2;
+    glGenTextures(1, &texture1);
+    glGenTextures(1, &texture2);
+
+16) Bind the first one and set its parameters:
+
+    glBindTexture(GL_TEXTURE_2D, texture1);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);  
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+17) Adjust parameters to insert image into the texture objects:
+
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1); 
+    stbi_set_flip_vertically_on_load(1);
+
+18) Attach an image to it:
+
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load("img1", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        printf("Failed to load texture\n");
+    }
+    stbi_image_free(data);
+
+19) Bind the second one and set its parameters:
+
+    glBindTexture(GL_TEXTURE_2D, texture2);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);  
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+20) Also attach an image to it:
+
+    data = stbi_load("img2", &width, &height, &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        printf("Failed to load texture\n");
+    }
+    stbi_image_free(data); 
+
+21) Activate the shader program and put data into its uniforms if its gonna be static for instance the vertex samplers:
+
+    ourShader.use();
+    ourShader.setInt("texture1", 0);
+    ourShader.setInt("texture2", 1);
+
+22) Create color(s) if they have uniforms and set them:
+
+    ourShader.use();
+    ourShader.setVec3(glm::vec3(1.0f,1.0f,1.0f,1.0f));
+
+22*) Make coordinates for multiple objects that go in creating the model matrix (only for multiple objects of same kind); for each shader programs (if multiple)
+
+    glm::vec3 cubePositions[] = {
+        ...
+    };
+
+    OR
+
+    glm::mat4 model(1.0f);
+    model = glm::translate(model, vec3(1.0f,1.0f,1.0f));
+    model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0f,1.0f,1.0f));
+
+    & activate the shader to send it to the uniform:
+    ourShader.setMat4("model", model);
+
+23) Make a camera that establish a base for view matrix (and somehow the projection) and make way to change it through keyboard and mouse movements:
+
+    Globals:
+
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    Camera camera(cameraPos);
+
+24) Establish the first point of the mouse:
+
+    Globals:
+
+    float lastX = SCREEN_H/2.0f;
+    float lastY = SCREEN_W/2.0f;
+    bool firstMouse = true;
+
+25) Establish the delta time:
+
+    Globals:
+
+    float deltaTime = 0.0f;
+    float lastFrame = 0.0f;
+
+26) Make callbacks (registered before) for updating view matrix for mouse clicks and scrolls:
+
+    Globals:
+
+    void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
+    {
+        float xpos = static_cast<float>(xposIn);
+        float ypos = static_cast<float>(yposIn);
+        if (firstMouse)
+        {
+            lastX = xpos;
+            lastY = ypos;
+            firstMouse = false;
+        }   
+        float xoffset = xpos - lastX;
+        float yoffset = lastY - ypos;
+        lastX = xpos;
+        lastY = ypos;
+        camera.ProcessMouseMovement(xoffset, yoffset);
+    }
+    void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+    {
+        camera.ProcessMouseScroll(static_cast<float>(yoffset));
+    }
+
+27) Make processors for updating view matrix on keyboard presses:
+
+    Globals:
+
+    void processInput(GLFWwindow *window)
+    {
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, true);
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            camera.ProcessKeyboard(FORWARD, deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            camera.ProcessKeyboard(BACKWARD, deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            camera.ProcessKeyboard(LEFT, deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            camera.ProcessKeyboard(RIGHT, deltaTime);
+    }
+
+28) Start the render loop:
+
+    while (!glfwWindowShouldClose(window)) 
+    {
+        a) Update the global camera parameters:
+
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame-lastFrame;
+        lastFrame = currentFrame;
+
+        b) Do the cleansing:
+
+        glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        c) Create the initial view matrix and projection matrix from the camera state:
+
+        glm::mat4 view(1.0f);
+        view =  camera.GetViewMatrix();
+        
+        glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCREEN_W/SCREEN_H, 0.1f, 100.0f);
+
+        d) Activate the shader(s) so we could update view and projection matrix:
+
+        ourShader.use();
+        ourShader.setMat4("view", view);
+        ourShader.setMat4("projection", projection);
+
+        e) Check if any inputs from keyboard or mouse (updates the camera state automatically)
+
+        processInput(window);
+        glfwPollEvents();
+
+        f) Activate the texures by their ID's and bind them:
+        
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture2);
+
+        g) Bind the VOA
+
+        glBindVertexArray(VAO);
+
+        h) Inner loop to create multiple objects:
+        
+        for (unsigned int i = 0; i < 10; ++i)
+        {
+
+            i) Create the initial matrix and translate it by positions:
+
+                glm::mat4 model(1.0f);
+                model = glm::translate(model, cubePositions[i]);
+                model = glm::rotate(model, glm::radians(45.0f), glm::vec3(1.0f,1.0f,1.0f));
+
+            ii) Activate and send the model matrix to its uniform:
+
+                ourShader.use();
+                ourShader.setMat4("model", model);
+
+            iii) Call the drawing functions:
+            
+                glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        }
+
+        i) Swap the buffers to make on the new one
+        
+        glfwSwapBuffers(window);   
+    }
+
+29) FINISH UP:
+
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glfwTerminate();
+    return 0;
