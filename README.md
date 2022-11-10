@@ -14,8 +14,6 @@ sudo apt-get install libx11-dev libglu1-mesa-dev freeglut3-dev libglew1.5 libgle
 
 ./rungl 00test.c
 
-"Do you see a triangle?"
-
 cd /extracted GLAD local files/
 
 sudo cp glad /usr/include/
